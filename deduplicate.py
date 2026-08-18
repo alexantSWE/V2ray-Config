@@ -18,6 +18,8 @@ UPSTREAM_SOURCES = [
     "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/v2ray/all_sub.txt",
     "https://raw.githubusercontent.com/Hidashimora/free-vpn-anti-rkn/main/configs/1.2.txt"
 ]
+# Set to True to discard nodes whose server address is a domain name (keeping only actual IP numbers)
+ALLOW_ONLY_IP_ADDRESSES = True
 
 GEOIP_DB_PATH = "GeoLite2-Country.mmdb"
 GEOIP_DB_URL = "https://raw.githubusercontent.com/P3TERX/GeoLite.mmdb/download/GeoLite2-Country.mmdb"
@@ -81,6 +83,18 @@ DEFAULT_PORTS = {
     "wireguard": 51820,
     "snell": 443,
 }
+
+
+def is_ip_address(host: str) -> bool:
+    """Returns True if host is a valid IPv4 or IPv6 address."""
+    if not host:
+        return False
+    host = host.strip("[]").strip()
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
 
 
 def generate_mirror_urls(url: str) -> list[str]:
@@ -781,16 +795,22 @@ def run_deduplication():
 
     parsed_nodes: list[CanonicalNode] = []
     unparsed_count = 0
+    domain_discarded_count = 0
 
     for line in lines:
         node = parse_canonical_node(line)
         if node:
+            # Filter out nodes whose main server address is a domain name
+            if ALLOW_ONLY_IP_ADDRESSES and not is_ip_address(node.host):
+                domain_discarded_count += 1
+                continue
             parsed_nodes.append(node)
         else:
             unparsed_count += 1
 
     print(
-        f"Parsed {len(parsed_nodes)} nodes ({unparsed_count} skipped/unparseable)."
+        f"Parsed {len(parsed_nodes)} IP-based nodes "
+        f"({domain_discarded_count} domain host nodes discarded, {unparsed_count} skipped/unparseable)."
     )
 
     unique_nodes = cluster_and_deduplicate(parsed_nodes)
