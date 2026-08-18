@@ -25,11 +25,6 @@ Copy any of the links below directly into your client. Subscriptions update auto
 | :--- | :--- | :--- |
 | **Deduplicated (Normal)** | `https://raw.githubusercontent.com/alexantSWE/V2ray-Config/main/All_Configs_Sub.txt` | Raw Text |
 | **Deduplicated (Base64)** | `https://raw.githubusercontent.com/alexantSWE/V2ray-Config/main/All_Configs_base64_Sub.txt` | Base64 |
-| **AI Studio (Normal)** | `https://raw.githubusercontent.com/alexantSWE/V2ray-Config/main/AIStudio_Configs_Sub.txt` | Raw Text |
-| **AI Studio (Base64)** | `https://raw.githubusercontent.com/alexantSWE/V2ray-Config/main/AIStudio_Configs_base64_Sub.txt` | Base64 |
-
-*(AI Studio filtering is pretty much useless tbh, like, we do test against the deduplicated result, but there is a big grave problem
-we are doing the tests on a runner, not a User's internet so... you get the picture)*
 
 *side note, ignore*
 
