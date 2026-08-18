@@ -1,0 +1,14 @@
+# GeoIP database and temp downloads
+*.mmdb
+*.mmdb.tmp
+
+# Binaries & archives
+*.zip
+xray
+xray.exe
+
+# Python bytecode & caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/

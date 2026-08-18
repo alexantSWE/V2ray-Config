@@ -1,0 +1,133 @@
+name: Update, Deduplicate, Filter & Maintain Configs
+
+on:
+  schedule:
+    - cron: '0 */1 * * *'
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      # Ignore auto-generated output updates
+      - 'All_Configs_*.txt'
+      - 'AIStudio_Configs_*.txt'
+      - 'Files/*.txt'
+      - 'README.md'
+
+concurrency:
+  group: update-configs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f Files/requirements.txt ]; then
+            pip install -r Files/requirements.txt
+          fi
+          pip install requests "requests[socks]" pysocks geoip2
+
+      - name: Install Xray-core Binary
+        run: |
+          mkdir -p "$HOME/bin"
+          curl -L -s -o xray.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
+          unzip -q -o xray.zip -d "$HOME/bin/"
+          chmod +x "$HOME/bin/xray"
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      # Stage 1: Fetch & Aggregate Upstream Links
+      - name: Stage 1 - Fetch & Aggregate Upstream
+        working-directory: Files
+        run: |
+          if [ -f app.py ]; then python app.py; fi
+          if [ -f sort.py ]; then python sort.py; fi
+
+      # Stage 2: Deduplicate & Sort Nodes Numerically / Alphabetically
+      - name: Stage 2 - Canonical Deduplication & Sorting
+        run: python deduplicate.py
+
+      # Stage 3: Specialized Filtering (e.g. AI Studio Nodes)
+      - name: Stage 3 - AI Studio Filter
+        run: |
+          if [ -f filter_aistudio.py ]; then
+            python filter_aistudio.py
+          fi
+
+      # Stage 4: Maintain History Size, Commit & Push
+      - name: Stage 4 - Commit, History Guard & Push
+        run: |
+          # 1. Sanity check: Ensure generated outputs exist and are non-empty
+          if [ ! -f "All_Configs_Sub.txt" ]; then
+            echo "::error::All_Configs_Sub.txt not found! Aborting."
+            exit 1
+          fi
+
+          LINE_COUNT=$(wc -l < All_Configs_Sub.txt || echo "0")
+          if [ "$LINE_COUNT" -lt 10 ]; then
+            echo "::error::Output file has suspiciously few lines ($LINE_COUNT). Aborting to prevent wiping repo."
+            exit 1
+          fi
+
+          # 2. Configure Git bot identity
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # 3. Clean up ephemeral build artifacts so they don't pollute the git tree or bloat history
+          rm -f GeoLite2-Country.mmdb* xray.zip
+          find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+          find . -type f -name "*.pyc" -delete 2>/dev/null || true
+
+          # 4. Calculate total .git folder size in MB
+          GIT_SIZE_MB=$(du -sm .git | cut -f1)
+          THRESHOLD_MB=200
+
+          echo "Current .git folder size: ${GIT_SIZE_MB} MB"
+          echo "History limit threshold: ${THRESHOLD_MB} MB"
+
+          # Path A: Size exceeds threshold -> Squash commit history into single orphan commit
+          if [ "$GIT_SIZE_MB" -ge "$THRESHOLD_MB" ]; then
+            echo "::warning::Repo size (${GIT_SIZE_MB}MB) exceeds threshold (${THRESHOLD_MB}MB). Flattening Git history..."
+            
+            git checkout --orphan temp_clean_branch
+            git add -A
+            git commit -m "Auto-cleanup: Reset git commit history (exceeded ${THRESHOLD_MB}MB threshold) [skip ci]"
+            git branch -D main
+            git branch -m main
+            git push origin main --force
+            echo "Git history successfully squashed to a single commit!"
+
+          # Path B: Size is healthy -> Standard delta commit
+          else
+            # Rebase any remote changes first with autostash enabled
+            git pull --rebase --autostash origin main || true
+
+            # Stage only the intended production files
+            git add All_Configs_Sub.txt All_Configs_base64_Sub.txt \
+                    AIStudio_Configs_Sub.txt AIStudio_Configs_base64_Sub.txt \
+                    Files/
+
+            if ! git diff --staged --quiet; then
+              git commit -m "Auto-update: aggregated, deduplicated & filtered nodes [skip ci]"
+              git push origin main
+              echo "Changes successfully pushed."
+            else
+              echo "No changes detected. Repository is already up to date."
+            fi
+          fi
