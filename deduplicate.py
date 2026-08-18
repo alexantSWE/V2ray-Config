@@ -12,7 +12,13 @@ import threading
 import urllib.parse
 import urllib.request
 
-UPSTREAM_URL = "https://raw.githubusercontent.com/barry-far/V2ray-config/main/All_Configs_Sub.txt"
+# List of upstream subscription URLs or local file paths to aggregate & deduplicate
+UPSTREAM_SOURCES = [
+    "https://raw.githubusercontent.com/barry-far/V2ray-config/main/All_Configs_Sub.txt",
+    "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/v2ray/all_sub.txt",
+    "https://raw.githubusercontent.com/Hidashimora/free-vpn-anti-rkn/main/configs/1.2.txt"
+]
+
 GEOIP_DB_PATH = "GeoLite2-Country.mmdb"
 GEOIP_DB_URL = "https://raw.githubusercontent.com/P3TERX/GeoLite.mmdb/download/GeoLite2-Country.mmdb"
 
@@ -77,6 +83,40 @@ DEFAULT_PORTS = {
 }
 
 
+def generate_mirror_urls(url: str) -> list[str]:
+    """
+    Generates CDN mirror fallbacks for GitHub raw URLs (e.g. jsDelivr, Fastly, GitHack, Ghproxy, Statically).
+    Non-GitHub URLs will simply return a single-item list containing the original URL.
+    """
+    url = url.strip()
+    mirrors = [url]  # Primary URL always attempted first
+
+    raw_match = re.match(
+        r"^https?://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.*)$",
+        url,
+    )
+    blob_match = re.match(
+        r"^https?://github\.com/([^/]+)/([^/]+)/raw/(?:refs/heads/)?([^/]+)/(.*)$",
+        url,
+    )
+
+    match = raw_match or blob_match
+    if match:
+        owner, repo, branch, path = match.groups()
+        cdn_templates = [
+            f"https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}",
+            f"https://fastly.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}",
+            f"https://raw.githack.com/{owner}/{repo}/{branch}/{path}",
+            f"https://ghproxy.net/https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}",
+            f"https://cdn.statically.io/gh/{owner}/{repo}/{branch}/{path}",
+        ]
+        for cdn_url in cdn_templates:
+            if cdn_url not in mirrors:
+                mirrors.append(cdn_url)
+
+    return mirrors
+
+
 def decode_base64_flexible(data: str) -> str:
     """Decodes base64 with URL-safe variants, missing padding, and whitespace handling."""
     if not data:
@@ -102,7 +142,6 @@ def clean_path(path: str) -> str:
 
 def normalize_uuid(val: str) -> str:
     v = val.lower().strip()
-    # Normalize 8-4-4-4-12 hex formatting if valid UUID
     clean = v.replace("-", "")
     if len(clean) == 32 and all(c in "0123456789abcdef" for c in clean):
         return f"{clean[:8]}-{clean[8:12]}-{clean[12:16]}-{clean[16:20]}-{clean[20:]}"
@@ -110,7 +149,6 @@ def normalize_uuid(val: str) -> str:
 
 
 def safe_split_uri(url: str):
-    """Robust custom URI parser handling IPv6, nested credentials, and raw queries."""
     scheme = ""
     if "://" in url:
         scheme, url = url.split("://", 1)
@@ -177,11 +215,9 @@ def normalize_query(query_dict: dict) -> tuple[dict, str]:
 
 @dataclass(order=True)
 class AddressSortKey:
-    """Provides exact numerical sorting for IPs and hierarchical sorting for domains."""
-
     address_type: int  # 0: IPv4, 1: IPv6, 2: Domain
-    ip_int: int  # Numerical value of IP
-    domain_hierarchy: list[str]  # ['com', 'example', 'node1'] for node1.example.com
+    ip_int: int
+    domain_hierarchy: list[str]
     port: int
 
     @classmethod
@@ -225,7 +261,6 @@ class CanonicalNode:
     params: dict = field(default_factory=dict)
     canonical_query: str = ""
 
-    # Sort & comparison keys
     sort_key: AddressSortKey = None
     strict_key: str = ""
     semantic_key: str = ""
@@ -235,13 +270,11 @@ class CanonicalNode:
         self.build_keys()
 
     def build_keys(self):
-        # Strict key represents complete canonical definition
         self.strict_key = (
             f"{self.protocol}|{self.host}|{self.port}|{self.userinfo}|"
             f"{self.path}|{self.canonical_query}"
         )
 
-        # Semantic key detects identical server endpoints sharing transport + credentials
         sni = self.params.get("sni") or self.params.get("host") or self.host
         net_type = self.params.get("type", "tcp")
         self.semantic_key = (
@@ -496,7 +529,6 @@ def ensure_geoip_db():
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = resp.read()
 
-        # Write to temp file first to prevent corruption from concurrency/interrupts
         with open(tmp_path, "wb") as f:
             f.write(data)
 
@@ -589,16 +621,15 @@ def resolve_geo_for_host(host: str) -> tuple[str, str]:
         GEO_CACHE[host] = res
     return res
 
-def prefetch_dns_and_geo(hosts: set[str]):
-    # Ensure database is fully initialized on main thread before spawning workers
-    init_geoip_reader()
 
+def prefetch_dns_and_geo(hosts: set[str]):
+    init_geoip_reader()
     print(f"Resolving GeoIP data for {len(hosts)} unique hosts...")
     with ThreadPoolExecutor(max_workers=DNS_THREADS) as executor:
         list(executor.map(resolve_geo_for_host, hosts))
 
-# Unpacking & Sanitization Subsystem
 
+# Unpacking & Sanitization Subsystem
 
 def unpack_sub_content(content: str) -> list[str]:
     schemes = (
@@ -636,6 +667,42 @@ def unpack_sub_content(content: str) -> list[str]:
     return lines
 
 
+def fetch_source_lines(source: str) -> list[str]:
+    """Fetches subscription lines from a local file or remote URL (with CDN mirror fallbacks)."""
+    source = source.strip()
+    if source.startswith(("http://", "https://")):
+        urls_to_try = generate_mirror_urls(source)
+        last_exception = None
+
+        for idx, url in enumerate(urls_to_try):
+            try:
+                if idx > 0:
+                    print(f"  -> Attempting CDN mirror fallback [{idx}]: {url}")
+                req = urllib.request.Request(
+                    url, headers={"User-Agent": "Mozilla/5.0"}
+                )
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    content = resp.read().decode("utf-8", errors="ignore").strip()
+                    if content:
+                        return unpack_sub_content(content)
+                    else:
+                        raise ValueError("Received empty response")
+            except Exception as e:
+                last_exception = e
+                print(f"  -> Fetch failed for '{url}': {e}")
+
+        raise RuntimeError(
+            f"All URL mirrors failed for '{source}'. Last error: {last_exception}"
+        )
+
+    elif os.path.exists(source):
+        with open(source, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read().strip()
+        return unpack_sub_content(content)
+    else:
+        raise ValueError(f"Source not found or invalid scheme: '{source}'")
+
+
 def sanitize_node(node: CanonicalNode, idx: int) -> str:
     code, flag = resolve_geo_for_host(node.host)
     proto_label = node.protocol.upper()
@@ -665,16 +732,7 @@ def sanitize_node(node: CanonicalNode, idx: int) -> str:
 
 # Pipeline Orchestration
 
-
 def cluster_and_deduplicate(nodes: list[CanonicalNode]) -> list[CanonicalNode]:
-    """
-    Sorts nodes by:
-      1. Address class (IPv4 numerically -> IPv6 numerically -> Domain hierarchically).
-      2. Port numerically.
-      3. Protocol and Credentials.
-    Then performs adjacent cluster-based deduplication using strict and semantic fingerprinting.
-    """
-    # Multilevel primary sort
     nodes.sort(
         key=lambda n: (
             n.sort_key.address_type,
@@ -691,11 +749,8 @@ def cluster_and_deduplicate(nodes: list[CanonicalNode]) -> list[CanonicalNode]:
     deduped = []
 
     for node in nodes:
-        # Tier 1: Canonical parameter check
         if node.strict_key in seen_strict:
             continue
-
-        # Tier 2: CDN fronting / semantic collision check
         if node.semantic_key in seen_semantic:
             continue
 
@@ -708,22 +763,21 @@ def cluster_and_deduplicate(nodes: list[CanonicalNode]) -> list[CanonicalNode]:
 
 def run_deduplication():
     print("Fetching upstream subscriptions...")
-    try:
-        req = urllib.request.Request(
-            UPSTREAM_URL, headers={"User-Agent": "Mozilla/5.0"}
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            content = resp.read().decode("utf-8", errors="ignore").strip()
-        lines = unpack_sub_content(content)
-    except Exception as e:
-        print(f"Error fetching upstream: {e}")
-        sys.exit(1)
+    lines = []
+    for source in UPSTREAM_SOURCES:
+        try:
+            print(f"Fetching from source: {source}")
+            fetched = fetch_source_lines(source)
+            print(f"  -> Retrieved {len(fetched)} raw lines.")
+            lines.extend(fetched)
+        except Exception as e:
+            print(f"  -> Warning: Failed to fetch from '{source}': {e}")
 
     if not lines:
-        print("ERROR: Fetch returned 0 lines. Aborting to prevent wiping repo!")
+        print("ERROR: Fetch returned 0 lines across all sources. Aborting to prevent wiping repo!")
         sys.exit(1)
 
-    print(f"Raw lines fetched: {len(lines)}")
+    print(f"Total raw lines fetched: {len(lines)}")
 
     parsed_nodes: list[CanonicalNode] = []
     unparsed_count = 0
@@ -739,15 +793,12 @@ def run_deduplication():
         f"Parsed {len(parsed_nodes)} nodes ({unparsed_count} skipped/unparseable)."
     )
 
-    # Perform multi-tier clustering and deduplication
     unique_nodes = cluster_and_deduplicate(parsed_nodes)
     print(f"Unique nodes after clustering & deduplication: {len(unique_nodes)}")
 
-    # Prefetch GeoIP in parallel for output formatting
     unique_hosts = {node.host for node in unique_nodes}
     prefetch_dns_and_geo(unique_hosts)
 
-    # Sanitize and assign node labels
     sanitized_nodes = [
         sanitize_node(node, i + 1) for i, node in enumerate(unique_nodes)
     ]
