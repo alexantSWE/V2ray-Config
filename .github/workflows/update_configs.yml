@@ -1,4 +1,4 @@
-name: Update, Deduplicate, Filter & Maintain Configs
+name: Update, Deduplicate & Maintain Configs
 
 on:
   schedule:
@@ -10,7 +10,6 @@ on:
     paths-ignore:
       # Ignore auto-generated output updates
       - 'All_Configs_*.txt'
-      - 'AIStudio_Configs_*.txt'
       - 'Files/*.txt'
       - 'README.md'
 
@@ -63,15 +62,8 @@ jobs:
       - name: Stage 2 - Canonical Deduplication & Sorting
         run: python deduplicate.py
 
-      # Stage 3: Specialized Filtering (e.g. AI Studio Nodes)
-      - name: Stage 3 - AI Studio Filter
-        run: |
-          if [ -f filter_aistudio.py ]; then
-            python filter_aistudio.py
-          fi
-
-      # Stage 4: Maintain History Size, Commit & Push
-      - name: Stage 4 - Commit, History Guard & Push
+      # Stage 3: Commit, History Guard & Push
+      - name: Stage 3 - Commit, History Guard & Push
         run: |
           # 1. Sanity check: Ensure generated outputs exist and are non-empty
           if [ ! -f "All_Configs_Sub.txt" ]; then
@@ -104,7 +96,7 @@ jobs:
           # Path A: Size exceeds threshold -> Squash commit history into single orphan commit
           if [ "$GIT_SIZE_MB" -ge "$THRESHOLD_MB" ]; then
             echo "::warning::Repo size (${GIT_SIZE_MB}MB) exceeds threshold (${THRESHOLD_MB}MB). Flattening Git history..."
-            
+
             git checkout --orphan temp_clean_branch
             git add -A
             git commit -m "Auto-cleanup: Reset git commit history (exceeded ${THRESHOLD_MB}MB threshold) [skip ci]"
@@ -119,12 +111,12 @@ jobs:
             git pull --rebase --autostash origin main || true
 
             # Stage only the intended production files
-            git add All_Configs_Sub.txt All_Configs_base64_Sub.txt \
-                    AIStudio_Configs_Sub.txt AIStudio_Configs_base64_Sub.txt \
+            git add All_Configs_Sub.txt \
+                    All_Configs_base64_Sub.txt \
                     Files/
 
             if ! git diff --staged --quiet; then
-              git commit -m "Auto-update: aggregated, deduplicated & filtered nodes [skip ci]"
+              git commit -m "Auto-update: aggregated & deduplicated nodes [skip ci]"
               git push origin main
               echo "Changes successfully pushed."
             else
