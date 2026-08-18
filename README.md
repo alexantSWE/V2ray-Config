@@ -6,7 +6,7 @@
 [![Update Configs](https://github.com/alexantSWE/V2ray-Config/actions/workflows/update_configs.yml/badge.svg)](https://github.com/alexantSWE/V2ray-Config/actions/workflows/update_configs.yml)
 [![GitHub repo size](https://img.shields.io/github/repo-size/alexantSWE/V2ray-Config?style=flat-square)](https://github.com/alexantSWE/V2ray-Config)
 
-> 💡 **Attribution & Notice:** Raw nodes are continuously fetched from [barry-far/V2ray-Config](https://github.com/barry-far/V2ray-Config), deduplicated, tagged with country flags via GeoIP, and filtered specifically for compatibility with services like **Google AI Studio**. Both normal and base64 versions are available
+> 💡 **Attribution & Notice:** Raw nodes are continuously fetched from [barry-far/V2ray-Config](https://github.com/barry-far/V2ray-Config),[MatinGhanbari/v2ray-configs](https://github.com/MatinGhanbari/v2ray-configs) and [hidashimora's panel](https://hidashimora.github.io/free-vpn-anti-rkn) deduplicated, tagged with country flags via GeoIP, and filtered specifically for compatibility with services like **Google AI Studio**. Both normal and base64 versions are available
 
 [ورژن فارسی](https://github.com/alexantSWE/V2ray-Config/blob/main/Persian-README.md) | [中文版](https://github.com/alexantSWE/V2ray-Config/blob/main/Chinese-README.md) | [Русская версия](https://github.com/alexantSWE/V2ray-Config/blob/main/Russian-README.md) 
 | [Türkçe Versiyon](https://github.com/alexantSWE/V2ray-Config/blob/main/Turkish-README.md)
