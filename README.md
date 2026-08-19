@@ -115,7 +115,8 @@ Distributed under the [MIT License](LICENSE).
 
 ## 🙏 Special Thanks & Credits
 
-* Upstream Source: **[barry-far/V2ray-Config](https://github.com/barry-far/V2ray-Config)**
+* Upstream Sources: **[barry-far/V2ray-Config](https://github.com/barry-far/V2ray-Config)**
+* **[MatinGhanbari/v2ray-configs](https://github.com/MatinGhanbari/v2ray-configs)** and **[hidashimora's panel](https://hidashimora.github.io/free-vpn-anti-rkn)**
 * Project contributors & inspirations:
   * [@ircfspace](https://github.com/MrPooyaX)
   * [@hossein-mohseni](https://github.com/hossein-mohseni)
