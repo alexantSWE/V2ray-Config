@@ -7177,7 +7177,7 @@ ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpWcjA2clVfdjF2RlBZZVhxOXpic0FB@194.54.80.37:1
 ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpYRjBrbHc3ODcwdlhuM3VRSXhlMTlR@194.54.80.37:1080#%F0%9F%87%BA%F0%9F%87%A6%20UA%20%7C%20SS-7177
 ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpnZWx3dlU5bVVSMG9yRUZTNUQ2dTdBQDE5NC41NC44MC4zNzoxMDgw#%F0%9F%87%BA%F0%9F%87%A6%20UA%20%7C%20SS-7178
 vless://e911c552-3a98-41e0-b5fb-0dd3879887b7@194.55.164.154:8443?path=/api/v1/irc&security=tls&encryption=none&insecure=0&host=vod.ensf.top&fp=chrome&type=ws&allowInsecure=0&sni=vod.ensf.top#%F0%9F%87%A8%F0%9F%87%BE%20CY%20%7C%20VLESS-7179
-vless://8212a50b-25bf-4739-bba1-aaffb5ffc84c@194.55.189.249:40443?security=reality&encryption=none&pbk=KCbW84C8h2Ja01LS0Ro8EpLLfzMTjs11t1ldDWLd5zo&headerType=none&fp=chrome&spx=/&type=tcp&sni=deepl.com&sid=aae8#%F0%9F%87%BA%F0%9F%87%B8%20US%20%7C%20VLESS-7180
+vless://8212a50b-25bf-4739-bba1-aaffb5ffc84c@194.55.189.249:40443?security=reality&encryption=none&pbk=KCbW84C8h2Ja01LS0Ro8EpLLfzMTjs11t1ldDWLd5zo&host=v2rayNplus--v2rayNplus--v2rayNplus&headerType=none&type=tcp&sni=deepl.com&sid=aae8#%F0%9F%87%BA%F0%9F%87%B8%20US%20%7C%20VLESS-7180
 trojan://eZwp12tXna8-s_ysszXnXq25rv1c8w@194.55.239.108:443?security=tls&sni=api-v2.captaingold.app#%F0%9F%87%B7%F0%9F%87%BA%20RU%20%7C%20TROJAN-7181
 trojan://eZwp12tXna8-s_ysszXnXq25rv1c8w@194.55.239.121:8443?type=tcp&security=tls&sni=api-v2.captaingold.app&alpn=h2%2Chttp%2F1.1&fp=firefox#%F0%9F%87%B7%F0%9F%87%BA%20RU%20%7C%20TROJAN-7182
 vless://e1299012-3d27-4b7f-99d5-25ccb7c63220@194.58.41.39:443?mode=auto&path=/&security=reality&encryption=none&pbk=sJTPQLMDCyPAbRcaJM-P8Y3_xRVpEEGrvv-kkIuIuQE&host=www.google.com&fp=chrome&type=xhttp&sni=www.google.com#%F0%9F%87%A9%F0%9F%87%AA%20DE%20%7C%20VLESS-7183
